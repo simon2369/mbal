@@ -63,7 +63,8 @@ export const exportData = (
 
   // Add BOM for UTF-8 compatibility in Excel
   const bom = '\uFEFF';
-  const blob = new Blob([bom + output], { type: 'text/csv;charset=utf-8;' });
+  const mimeType = format === 'csv' ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;';
+  const blob = new Blob([bom + output], { type: mimeType });
 
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
@@ -73,4 +74,6 @@ export const exportData = (
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  // Clean up the object URL to prevent memory leaks
+  URL.revokeObjectURL(url);
 };

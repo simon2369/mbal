@@ -8,8 +8,3 @@ export enum ExportFormat {
   CSV = 'csv',
   TXT = 'txt'
 }
-
-export interface AnalysisResult {
-  suggestedColumns: string[];
-  summary: string;
-}

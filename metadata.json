@@ -1,5 +1,5 @@
 {
-  "name": "Excel5 Converter & AI Analyst",
-  "description": "A professional tool to convert Excel files to UTF-8 CSV/Text, extracting specific columns with optional AI-powered analysis.",
+  "name": "Excel5 Converter",
+  "description": "A professional tool to convert Excel files to UTF-8 CSV/Text, extracting up to 5 specific columns.",
   "requestFramePermissions": []
 }

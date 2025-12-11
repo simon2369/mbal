@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ParsedSheet, ExportFormat } from '../types';
 import { Check, FileText, Download, AlertCircle } from 'lucide-react';
 import { exportData } from '../utils/excel';
-import { SmartAnalysis } from './SmartAnalysis';
 
 interface DataPreviewProps {
   sheet: ParsedSheet;
@@ -46,10 +45,6 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
     );
   };
 
-  const applyAISuggestions = (cols: string[]) => {
-    setSelectedColumns(new Set(cols.slice(0, 5)));
-  };
-
   const selectedCount = selectedColumns.size;
   const isReady = selectedCount === 5;
 
@@ -77,9 +72,6 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
         {/* Left Column: Controls */}
         <div className="lg:col-span-1 space-y-6">
           
-          {/* AI Section */}
-          <SmartAnalysis sheet={sheet} onApplySuggestions={applyAISuggestions} />
-
           {/* Column Selection */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
