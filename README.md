@@ -1,11 +1,11 @@
 # Excel5 Converter
 
-A professional React application to convert Excel files to UTF-8 CSV/Text files. Select up to 5 columns from your Excel file and export them with proper UTF-8 encoding.
+A professional React application to convert Excel files to UTF-8 CSV/Text files. Select any columns from your Excel file and export them with proper UTF-8 encoding.
 
 ## Features
 
 - **Drag & Drop Upload**: Easy file selection for .xlsx and .xls files.
-- **Column Selection**: Select up to 5 columns to export (first 5 columns are pre-selected).
+- **Column Selection**: Select any number of columns to export (all columns are pre-selected by default).
 - **Export Options**: Download as CSV or Text file with UTF-8 encoding (BOM included for Excel compatibility).
 - **Secure**: All processing happens client-side in your browser - no data is sent to any server.
 

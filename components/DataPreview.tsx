@@ -13,10 +13,9 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
   const [exportFormat, setExportFormat] = useState<ExportFormat>(ExportFormat.CSV);
 
-  // Initialize with first 5 columns
+  // Initialize with all columns selected
   useEffect(() => {
-    const initialCols = sheet.columns.slice(0, 5);
-    setSelectedColumns(new Set(initialCols));
+    setSelectedColumns(new Set(sheet.columns));
   }, [sheet]);
 
   const toggleColumn = (col: string) => {
@@ -24,12 +23,6 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
     if (newSet.has(col)) {
       newSet.delete(col);
     } else {
-      if (newSet.size >= 5) {
-        // Optional: Alert or just don't allow adding more than 5?
-        // Let's strictly enforce 5 as per user request context implied "5 columns"
-        // But for UX, we might just block the 6th.
-        return; 
-      }
       newSet.add(col);
     }
     setSelectedColumns(newSet);
@@ -46,7 +39,7 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
   };
 
   const selectedCount = selectedColumns.size;
-  const isReady = selectedCount === 5;
+  const isReady = selectedCount > 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -77,7 +70,7 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Columns</h3>
               <span className={`text-xs font-bold px-2 py-1 rounded-full ${isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                {selectedCount} / 5 Selected
+                {selectedCount} Selected
               </span>
             </div>
             
@@ -99,7 +92,6 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
                       className="hidden"
                       checked={isSelected}
                       onChange={() => toggleColumn(col)}
-                      disabled={!isSelected && selectedCount >= 5}
                     />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${isSelected ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'}`}>
                       {isSelected && <Check className="w-3 h-3 text-white" />}
@@ -112,7 +104,7 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
              {!isReady && (
                 <div className="mt-3 text-xs text-amber-600 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  Please select exactly 5 columns.
+                  Please select at least one column to export.
                 </div>
               )}
           </div>
