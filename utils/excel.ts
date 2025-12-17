@@ -76,9 +76,13 @@ const transformDataForExport = (data: any[], columns: string[]): any[] => {
   columns.forEach(col => {
     let timeCount = 0;
     let dateCount = 0;
+    let hasData = false;
     
     for (let i = 0; i < sampleSize; i++) {
       const value = data[i]?.[col];
+      if (value !== undefined && value !== null && value !== '') {
+        hasData = true;
+      }
       if (isTimeValue(value)) timeCount++;
       if (isDateValue(value)) dateCount++;
     }
@@ -91,8 +95,8 @@ const transformDataForExport = (data: any[], columns: string[]): any[] => {
     else if (dateCount >= sampleSize * 0.6) {
       dateColumns.push(col);
     }
-    // Otherwise, treat as ID/code column
-    else if (value !== undefined && value !== null && value !== '') {
+    // Otherwise, treat as ID/code column if it has data
+    else if (hasData) {
       idColumns.push(col);
     }
   });
@@ -200,27 +204,51 @@ export const exportData = (
   format: 'csv' | 'txt',
   filename: string
 ) => {
-  // Transform data based on detected pattern
-  const transformedData = transformDataForExport(data, columns);
+  try {
+    // Transform data based on detected pattern
+    const transformedData = transformDataForExport(data, columns);
 
-  const worksheet = XLSX.utils.json_to_sheet(transformedData);
-  
-  // Generate CSV string (use tab separator for both CSV and TXT to match your example)
-  const output = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+    if (!transformedData || transformedData.length === 0) {
+      console.error('No data to export');
+      alert('No data to export. Please check your column selection.');
+      return;
+    }
 
-  // Add BOM for UTF-8 compatibility in Excel
-  const bom = '\uFEFF';
-  const mimeType = format === 'csv' ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;';
-  const blob = new Blob([bom + output], { type: mimeType });
+    const worksheet = XLSX.utils.json_to_sheet(transformedData);
+    
+    // Generate CSV string (use tab separator for both CSV and TXT to match your example)
+    const output = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
 
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", `${filename}.${format}`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  // Clean up the object URL to prevent memory leaks
-  URL.revokeObjectURL(url);
+    if (!output || output.trim().length === 0) {
+      console.error('Empty output generated');
+      alert('Failed to generate export file.');
+      return;
+    }
+
+    // Add BOM for UTF-8 compatibility in Excel
+    const bom = '\uFEFF';
+    const mimeType = format === 'csv' ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;';
+    const blob = new Blob([bom + output], { type: mimeType });
+
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${filename}.${format}`);
+    link.style.visibility = 'hidden';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Use setTimeout to ensure the link is properly attached before clicking
+    setTimeout(() => {
+      link.click();
+      // Clean up after a delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }, 10);
+  } catch (error) {
+    console.error('Export error:', error);
+    alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };

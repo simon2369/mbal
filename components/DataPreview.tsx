@@ -61,11 +61,23 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
   };
 
   const handleExport = () => {
-    if (selectedColumns.size === 0) return;
+    if (selectedColumns.size === 0) {
+      console.warn('No columns selected');
+      return;
+    }
+    
+    const columnsToExport = orderedColumns.filter(col => selectedColumns.has(col));
+    console.log('Exporting:', {
+      dataRows: sheet.data.length,
+      columns: columnsToExport,
+      format: exportFormat,
+      filename: fileName.replace(/\.[^/.]+$/, "")
+    });
+    
     // Use ordered columns for export
     exportData(
       sheet.data,
-      orderedColumns.filter(col => selectedColumns.has(col)),
+      columnsToExport,
       exportFormat,
       fileName.replace(/\.[^/.]+$/, "")
     );
