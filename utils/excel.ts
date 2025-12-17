@@ -47,64 +47,130 @@ const transformDate = (dateStr: string): string => {
   return String(dateStr).replace(/\//g, '.');
 };
 
-// Transform data: split rows with "First In" and "Last Out" into separate rows
+// Check if a value looks like a time (HH:MM or H:MM format)
+const isTimeValue = (value: any): boolean => {
+  const str = String(value || '').trim();
+  // Match patterns like 7:40, 16:23, 09:01, 13:32
+  return /^\d{1,2}:\d{2}$/.test(str);
+};
+
+// Check if a value looks like a date
+const isDateValue = (value: any): boolean => {
+  const str = String(value || '').trim();
+  // Match patterns like 12/9/2025, 11/04/2025, etc.
+  return /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str) || /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(str);
+};
+
+// Transform data: split rows with two time columns into separate rows
 const transformDataForExport = (data: any[], columns: string[]): any[] => {
-  // Check if we have the pattern: Personnel Code, Date, First In, Last Out
-  const hasFirstIn = columns.some(col => 
+  if (data.length === 0 || columns.length === 0) return data;
+
+  // Detect columns by content pattern
+  const timeColumns: string[] = [];
+  const dateColumns: string[] = [];
+  const idColumns: string[] = [];
+
+  // Sample first few rows to detect column types
+  const sampleSize = Math.min(5, data.length);
+  
+  columns.forEach(col => {
+    let timeCount = 0;
+    let dateCount = 0;
+    
+    for (let i = 0; i < sampleSize; i++) {
+      const value = data[i]?.[col];
+      if (isTimeValue(value)) timeCount++;
+      if (isDateValue(value)) dateCount++;
+    }
+    
+    // If most samples are times, it's a time column
+    if (timeCount >= sampleSize * 0.6) {
+      timeColumns.push(col);
+    }
+    // If most samples are dates, it's a date column
+    else if (dateCount >= sampleSize * 0.6) {
+      dateColumns.push(col);
+    }
+    // Otherwise, treat as ID/code column
+    else if (value !== undefined && value !== null && value !== '') {
+      idColumns.push(col);
+    }
+  });
+
+  // Check for pattern: at least 1 date column, exactly 2 time columns, and at least 1 ID column
+  // OR check by column name patterns (for backward compatibility)
+  const hasFirstInByName = columns.some(col => 
     col.includes('Първи вътре') || col.includes('First In') || col.toLowerCase().includes('first')
   );
-  const hasLastOut = columns.some(col => 
+  const hasLastOutByName = columns.some(col => 
     col.includes('Последно излизане') || col.includes('Last Out') || col.toLowerCase().includes('last')
   );
-  const hasPersonnelCode = columns.some(col => 
+  const hasPersonnelCodeByName = columns.some(col => 
     col.includes('Кодекс на персонала') || col.includes('Код на персонала') || 
     col.toLowerCase().includes('personnel') || col.toLowerCase().includes('code')
   );
-  const hasDate = columns.some(col => 
+  const hasDateByName = columns.some(col => 
     col.includes('Дата') || col.toLowerCase().includes('date')
   );
 
-  // If we have the time-split pattern, transform the data
-  if (hasFirstIn && hasLastOut && hasPersonnelCode && hasDate) {
+  const shouldTransform = 
+    (timeColumns.length === 2 && dateColumns.length >= 1 && idColumns.length >= 1) ||
+    (hasFirstInByName && hasLastOutByName && hasPersonnelCodeByName && hasDateByName);
+
+  if (shouldTransform) {
     const transformedData: any[] = [];
     
-    // Find the actual column names
-    const personnelCodeCol = columns.find(col => 
-      col.includes('Кодекс на персонала') || col.includes('Код на персонала') || 
-      col.toLowerCase().includes('personnel') || col.toLowerCase().includes('code')
-    ) || columns[0];
-    
-    const dateCol = columns.find(col => 
-      col.includes('Дата') || col.toLowerCase().includes('date')
-    ) || columns[1];
-    
-    const firstInCol = columns.find(col => 
-      col.includes('Първи вътре') || col.includes('First In') || col.toLowerCase().includes('first')
-    );
-    
-    const lastOutCol = columns.find(col => 
-      col.includes('Последно излизане') || col.includes('Last Out') || col.toLowerCase().includes('last')
-    );
+    // Determine column roles
+    let dateCol: string;
+    let firstTimeCol: string;
+    let secondTimeCol: string;
+    let idCol: string;
+
+    if (hasDateByName && hasFirstInByName && hasLastOutByName && hasPersonnelCodeByName) {
+      // Use name-based detection (backward compatibility)
+      dateCol = columns.find(col => 
+        col.includes('Дата') || col.toLowerCase().includes('date')
+      ) || dateColumns[0] || columns[0];
+      
+      firstTimeCol = columns.find(col => 
+        col.includes('Първи вътре') || col.includes('First In') || col.toLowerCase().includes('first')
+      ) || timeColumns[0];
+      
+      secondTimeCol = columns.find(col => 
+        col.includes('Последно излизане') || col.includes('Last Out') || col.toLowerCase().includes('last')
+      ) || timeColumns[1];
+      
+      idCol = columns.find(col => 
+        col.includes('Кодекс на персонала') || col.includes('Код на персонала') || 
+        col.toLowerCase().includes('personnel') || col.toLowerCase().includes('code')
+      ) || idColumns[0] || columns.find(col => !timeColumns.includes(col) && !dateColumns.includes(col)) || columns[0];
+    } else {
+      // Use content-based detection
+      dateCol = dateColumns[0] || columns.find(col => col.toLowerCase().includes('date')) || columns[0];
+      firstTimeCol = timeColumns[0] || '';
+      secondTimeCol = timeColumns[1] || '';
+      idCol = idColumns[0] || columns.find(col => !timeColumns.includes(col) && !dateColumns.includes(col)) || columns[0];
+    }
 
     data.forEach(row => {
-      const personnelCode = row[personnelCodeCol] || '';
+      const id = String(row[idCol] || '').trim();
       const date = transformDate(String(row[dateCol] || ''));
       
-      // Create row for First In time
-      if (firstInCol && row[firstInCol]) {
+      // Create row for first time
+      if (firstTimeCol && row[firstTimeCol] && String(row[firstTimeCol]).trim()) {
         transformedData.push({
-          'Код на персонала': personnelCode,
+          'Код на персонала': id,
           'Дата': date,
-          'време': String(row[firstInCol]).trim()
+          'време': String(row[firstTimeCol]).trim()
         });
       }
       
-      // Create row for Last Out time
-      if (lastOutCol && row[lastOutCol]) {
+      // Create row for second time
+      if (secondTimeCol && row[secondTimeCol] && String(row[secondTimeCol]).trim()) {
         transformedData.push({
-          'Код на персонала': personnelCode,
+          'Код на персонала': id,
           'Дата': date,
-          'време': String(row[lastOutCol]).trim()
+          'време': String(row[secondTimeCol]).trim()
         });
       }
     });
