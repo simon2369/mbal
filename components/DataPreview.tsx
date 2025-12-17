@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ParsedSheet, ExportFormat } from '../types';
-import { Check, FileText, Download, AlertCircle } from 'lucide-react';
+import { Check, FileText, Download, AlertCircle, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { exportData } from '../utils/excel';
 
 interface DataPreviewProps {
@@ -11,12 +11,25 @@ interface DataPreviewProps {
 
 export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onReset }) => {
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
+  const [orderedColumns, setOrderedColumns] = useState<string[]>([]);
   const [exportFormat, setExportFormat] = useState<ExportFormat>(ExportFormat.CSV);
 
   // Initialize with all columns selected
   useEffect(() => {
-    setSelectedColumns(new Set(sheet.columns));
+    const allColumns = new Set(sheet.columns);
+    setSelectedColumns(allColumns);
+    setOrderedColumns([...sheet.columns]);
   }, [sheet]);
+
+  // Update ordered columns when selection changes
+  useEffect(() => {
+    setOrderedColumns(prev => {
+      // Keep existing order, add new selections at the end, remove deselected
+      const newOrder = prev.filter(col => selectedColumns.has(col));
+      const newSelections = Array.from(selectedColumns).filter(col => !prev.includes(col));
+      return [...newOrder, ...newSelections];
+    });
+  }, [selectedColumns]);
 
   const toggleColumn = (col: string) => {
     const newSet = new Set(selectedColumns);
@@ -28,11 +41,31 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
     setSelectedColumns(newSet);
   };
 
+  const moveColumn = (col: string, direction: 'up' | 'down') => {
+    const selectedOrdered = orderedColumns.filter(c => selectedColumns.has(c));
+    const currentIndex = selectedOrdered.indexOf(col);
+    
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= selectedOrdered.length) return;
+    
+    // Find positions in full orderedColumns array
+    const fullCurrentIndex = orderedColumns.indexOf(col);
+    const targetCol = selectedOrdered[newIndex];
+    const fullTargetIndex = orderedColumns.indexOf(targetCol);
+    
+    const newOrder = [...orderedColumns];
+    [newOrder[fullCurrentIndex], newOrder[fullTargetIndex]] = [newOrder[fullTargetIndex], newOrder[fullCurrentIndex]];
+    setOrderedColumns(newOrder);
+  };
+
   const handleExport = () => {
     if (selectedColumns.size === 0) return;
+    // Use ordered columns for export
     exportData(
       sheet.data,
-      Array.from(selectedColumns),
+      orderedColumns.filter(col => selectedColumns.has(col)),
       exportFormat,
       fileName.replace(/\.[^/.]+$/, "")
     );
@@ -68,13 +101,13 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
           {/* Column Selection */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Columns</h3>
+              <h3 className="font-semibold text-gray-900">Select Columns</h3>
               <span className={`text-xs font-bold px-2 py-1 rounded-full ${isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                 {selectedCount} Selected
               </span>
             </div>
             
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar mb-4">
               {sheet.columns.map((col) => {
                 const isSelected = selectedColumns.has(col);
                 return (
@@ -108,6 +141,60 @@ export const DataPreview: React.FC<DataPreviewProps> = ({ sheet, fileName, onRes
                 </div>
               )}
           </div>
+
+          {/* Column Ordering */}
+          {isReady && (
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">Column Order</h3>
+                <span className="text-xs text-gray-500">Drag to reorder</span>
+              </div>
+              
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {orderedColumns
+                  .filter(col => selectedColumns.has(col))
+                  .map((col, index) => {
+                    const selectedOrdered = orderedColumns.filter(c => selectedColumns.has(c));
+                    const isFirst = index === 0;
+                    const isLast = index === selectedOrdered.length - 1;
+                    
+                    return (
+                      <div
+                        key={col}
+                        className="flex items-center gap-2 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50"
+                      >
+                        <GripVertical className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-indigo-700 truncate flex-grow">{col}</span>
+                        <div className="flex flex-col gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() => moveColumn(col, 'up')}
+                            disabled={isFirst}
+                            className={`
+                              p-1 rounded hover:bg-indigo-200 transition-colors
+                              ${isFirst ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
+                            `}
+                            title="Move up"
+                          >
+                            <ArrowUp className="w-3 h-3 text-indigo-600" />
+                          </button>
+                          <button
+                            onClick={() => moveColumn(col, 'down')}
+                            disabled={isLast}
+                            className={`
+                              p-1 rounded hover:bg-indigo-200 transition-colors
+                              ${isLast ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
+                            `}
+                            title="Move down"
+                          >
+                            <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* Export Controls */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
